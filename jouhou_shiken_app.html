@@ -2530,6 +2530,24 @@ const QUESTIONS = [
 ]; // end QUESTIONS
 
 // =============================================
+// 分野別練習グループ（R6/R7過去問を同じ分野にまとめる）
+// =============================================
+const SUBJECT_GROUPS = [
+  {label:"西洋・日本教育史", cats:["西洋教育史","日本教育史","令和6年度過去問（西洋教育史）","令和6年度過去問（日本教育史）","令和7年度過去問（西洋教育史）","令和7年度過去問（日本教育史）"]},
+  {label:"教育基本法", cats:["教育基本法","令和6年度過去問（教育基本法）","令和7年度過去問（教育基本法）"]},
+  {label:"学校教育法", cats:["学校教育法","令和6年度過去問（学校教育法）","令和7年度過去問（学校教育法）"]},
+  {label:"地方公務員法・教特法", cats:["地方公務員法","教育公務員特例法","令和6年度過去問（地方公務員法・教特法）","令和7年度過去問（教育公務員特例法）"]},
+  {label:"教育法規（その他）", cats:["教育法規（その他）","いじめ防止対策推進法","特別支援教育"]},
+  {label:"高校学習指導要領（総則）", cats:["高校学習指導要領（総則）","令和6年度過去問（高校学習指導要領総則）","令和6年度過去問（高校学習指導要領特別活動）","令和7年度過去問（高校学習指導要領総則）","令和8年度予想問題（高校学習指導要領総則）"]},
+  {label:"生徒指導", cats:["生徒指導","令和6年度過去問（生徒指導）","令和7年度過去問（生徒指導）"]},
+  {label:"教育心理", cats:["教育心理（人格と適応）","教育心理（発達の理論）","教育心理（学習の理論）","令和6年度過去問（教育心理）","令和7年度過去問（教育心理）"]},
+  {label:"教育時事", cats:["教育時事","令和6年度過去問（教育時事）","令和7年度過去問（教育時事）"]},
+  {label:"学習指導要領（情報編）", cats:["学習指導要領（情報編）","令和6年度過去問（情報Ⅱ）","令和7年度過去問（学習指導要領・情報編）","令和8年度予想問題（解説情報編）"]},
+  {label:"情報Ⅰ（内容）", cats:["情報Ⅰ（AI・機械学習）","情報Ⅰ（アルゴリズム）","情報Ⅰ（コンピュータ・2進数）","情報Ⅰ（データベース）","情報Ⅰ（ネットワーク）","情報Ⅰ（情報セキュリティ）","情報Ⅰ（統計・データ分析）","情報Ⅰ（著作権・情報法規）","情報Ⅰ（論理回路）","令和6年度過去問（情報Ⅰ）","令和7年度過去問（情報Ⅰ）"]},
+  {label:"教科教職に関する科目(Ⅱ)", cats:["教科教職に関する科目(Ⅱ)"]},
+];
+
+// =============================================
 // カテゴリ一覧と試験形式の問題配分
 // =============================================
 const EXAM_DISTRIBUTION = [
@@ -2724,10 +2742,10 @@ function renderHome() {
     <button class="btn btn-outline" style="border-color:#e67e22;color:#e67e22" onclick="startR8Yosoku()">
       🎯 令和8年度 予想問題（${QUESTIONS.filter(q=>q.cat.startsWith("令和8年度予想問題")).length}問）
     </button>
-    <div class="home-desc" style="margin-top:8px">分野を選んで練習</div>
+    <div class="home-desc" style="margin-top:8px">分野を選んで練習（R6・R7過去問を含む）</div>
     <div class="cat-grid">
-      ${allCategories().map(cat => {
-        const qs = catQuestions(cat);
+      ${SUBJECT_GROUPS.map(group => {
+        const qs = group.cats.flatMap(c => catQuestions(c));
         const n = qs.length;
         const answered = qs.filter(q => history[q.id]);
         const correct = qs.filter(q => history[q.id] === "correct").length;
@@ -2740,8 +2758,8 @@ function renderHome() {
           else if (pct < 75) { cls = "acc-mid"; accHtml = `<div class="cat-acc" style="color:#e67e22">正答率 ${pct}%</div>`; }
           else { accHtml = `<div class="cat-acc" style="color:#27ae60">正答率 ${pct}%</div>`; }
         }
-        return `<button class="cat-btn ${cls}" onclick="startCat('${escHtml(cat)}')">
-          <div class="cat-name">${escHtml(cat)}</div>
+        return `<button class="cat-btn ${cls}" onclick="startGroup('${escHtml(group.label)}')">
+          <div class="cat-name">${escHtml(group.label)}</div>
           <div class="cat-count">${n}問${total > 0 ? `（回答済 ${total}問）` : ""}</div>
           ${accHtml}
         </button>`;
@@ -3134,6 +3152,25 @@ function startCat(cat) {
     screen: "exam",
     mode: "cat",
     catFilter: cat,
+    questionIds: ids,
+    currentIdx: 0,
+    answers: {},
+    choiceOrders: {},
+    startedAt: Date.now(),
+  };
+  save();
+  render();
+}
+
+function startGroup(label) {
+  const group = SUBJECT_GROUPS.find(g => g.label === label);
+  if (!group) return;
+  const qs = group.cats.flatMap(c => catQuestions(c)).filter(q => !q.type || q.type !== "essay");
+  const ids = shuffle(qs.map(q => q.id));
+  APP = {
+    screen: "exam",
+    mode: "cat",
+    catFilter: label,
     questionIds: ids,
     currentIdx: 0,
     answers: {},
