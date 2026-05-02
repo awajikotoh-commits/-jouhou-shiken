@@ -310,6 +310,11 @@ body {
 .cat-btn.acc-mid:hover { background: #fff3d0; }
 
 .divider { height: 1px; background: var(--border); margin: 4px 24px 16px; }
+.essay-list-btn { display:flex; align-items:center; gap:10px; width:100%; padding:12px 14px; background:#fff; border:1.5px solid var(--border); border-radius:var(--radius); cursor:pointer; font-family:inherit; text-align:left; transition:border-color .15s,background .15s; }
+.essay-list-btn:hover { border-color:var(--secondary); background:#eaf4fd; }
+.essay-list-btn .el-num { min-width:1.6em; font-size:0.8rem; color:var(--muted); font-weight:bold; }
+.essay-list-btn .el-status { font-size:0.95rem; font-weight:bold; min-width:1.4em; }
+.essay-list-btn .el-text { font-size:0.88rem; color:var(--text); flex:1; }
 
 /* レスポンシブ */
 @media (max-width: 560px) {
@@ -2686,6 +2691,7 @@ function render() {
   if (APP.screen === "home") renderHome();
   else if (APP.screen === "exam") renderExam();
   else if (APP.screen === "result") renderResult();
+  else if (APP.screen === "essay-list") renderEssayList();
 }
 
 function header() {
@@ -2834,7 +2840,9 @@ function renderExam() {
     </div>`;
   const navNext = `<div class="nav-area">${idx + 1 < total
     ? `<button class="btn btn-primary btn-sm" onclick="nextQ()">次の問題 →</button>`
-    : `<button class="btn btn-success btn-sm" onclick="showResult()">結果を見る</button>`}</div>`;
+    : APP.returnTo === "essay-list"
+      ? `<button class="btn btn-secondary btn-sm" onclick="backToEssayList()">← 一覧に戻る</button>`
+      : `<button class="btn btn-success btn-sm" onclick="showResult()">結果を見る</button>`}</div>`;
 
   // ---- 論述問題 ----
   if (q.type === "essay") {
@@ -3166,7 +3174,14 @@ function startGroup(label) {
   const group = SUBJECT_GROUPS.find(g => g.label === label);
   if (!group) return;
   const qs = group.cats.flatMap(c => catQuestions(c));
-  const ids = shuffle(qs.map(q => q.id));
+  // 論述問題のみのグループは一覧表示モード
+  if (qs.length > 0 && qs.every(q => q.type === "essay")) {
+    APP = { screen: "essay-list", essayGroupLabel: label };
+    save();
+    render();
+    return;
+  }
+  const ids = shuffle(qs.filter(q => !q.type || q.type !== "essay").map(q => q.id));
   APP = {
     screen: "exam",
     mode: "cat",
@@ -3177,6 +3192,62 @@ function startGroup(label) {
     choiceOrders: {},
     startedAt: Date.now(),
   };
+  save();
+  render();
+}
+
+function renderEssayList() {
+  const label = APP.essayGroupLabel || "教科教職に関する科目(Ⅱ)";
+  const group = SUBJECT_GROUPS.find(g => g.label === label);
+  const qs = group ? group.cats.flatMap(c => catQuestions(c)) : [];
+  const history = loadHistory();
+  const itemsHtml = qs.map((q, idx) => {
+    const h = history[q.id];
+    const statusIcon = !h ? "" : h === "correct" ? "✓" : "△";
+    const statusColor = !h ? "" : h === "correct" ? "#27ae60" : "#e67e22";
+    const shortQ = q.q.length > 36 ? q.q.substring(0, 36) + "…" : q.q;
+    return `<button class="essay-list-btn" onclick="startEssayQ(${q.id})">
+      <span class="el-num">${idx + 1}.</span>
+      <span class="el-status" style="color:${statusColor}">${statusIcon}</span>
+      <span class="el-text">${escHtml(shortQ)}</span>
+    </button>`;
+  }).join("");
+  const doneCount = qs.filter(q => history[q.id]).length;
+  app.innerHTML = header() + `
+  <div class="card">
+    <div class="home-title" style="padding:20px 24px 4px">📝 ${escHtml(label)}</div>
+    <div class="home-desc" style="padding:0 24px 12px">問いを選んで答えてください（${doneCount}/${qs.length}問 回答済）</div>
+    <div style="display:flex;flex-direction:column;gap:6px;padding:0 16px 16px">
+      ${itemsHtml}
+    </div>
+  </div>
+  <div style="text-align:center;padding:8px">
+    <button class="btn btn-outline btn-sm" onclick="backHome()">ホームに戻る</button>
+  </div>`;
+}
+
+function startEssayQ(qId) {
+  APP = {
+    screen: "exam",
+    mode: "cat",
+    catFilter: APP.essayGroupLabel || "教科教職に関する科目(Ⅱ)",
+    returnTo: "essay-list",
+    essayGroupLabel: APP.essayGroupLabel || "教科教職に関する科目(Ⅱ)",
+    questionIds: [qId],
+    currentIdx: 0,
+    answers: {},
+    choiceOrders: {},
+    essayRevealed: {},
+    startedAt: Date.now(),
+  };
+  save();
+  render();
+}
+
+function backToEssayList() {
+  updateHistory();
+  const label = APP.essayGroupLabel || "教科教職に関する科目(Ⅱ)";
+  APP = { screen: "essay-list", essayGroupLabel: label };
   save();
   render();
 }
@@ -3240,6 +3311,10 @@ function showResult() {
 }
 
 function confirmHome() {
+  if (APP.returnTo === "essay-list") {
+    backToEssayList();
+    return;
+  }
   if (confirm("中断して戻りますか？進捗は保存されており、次回「続きから再開」できます。")) {
     backHome();
   }
