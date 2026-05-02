@@ -3165,7 +3165,7 @@ function startCat(cat) {
 function startGroup(label) {
   const group = SUBJECT_GROUPS.find(g => g.label === label);
   if (!group) return;
-  const qs = group.cats.flatMap(c => catQuestions(c)).filter(q => !q.type || q.type !== "essay");
+  const qs = group.cats.flatMap(c => catQuestions(c));
   const ids = shuffle(qs.map(q => q.id));
   APP = {
     screen: "exam",
