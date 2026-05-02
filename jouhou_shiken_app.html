@@ -3199,7 +3199,8 @@ function startGroup(label) {
 function renderEssayList() {
   const label = APP.essayGroupLabel || "教科教職に関する科目(Ⅱ)";
   const group = SUBJECT_GROUPS.find(g => g.label === label);
-  const qs = group ? group.cats.flatMap(c => catQuestions(c)) : [];
+  // IDの昇順で固定順番
+  const qs = (group ? group.cats.flatMap(c => catQuestions(c)) : []).sort((a,b) => a.id - b.id);
   const history = loadHistory();
   const itemsHtml = qs.map((q, idx) => {
     const h = history[q.id];
@@ -3216,7 +3217,7 @@ function renderEssayList() {
   app.innerHTML = header() + `
   <div class="card">
     <div class="home-title" style="padding:20px 24px 4px">📝 ${escHtml(label)}</div>
-    <div class="home-desc" style="padding:0 24px 12px">問いを選んで答えてください（${doneCount}/${qs.length}問 回答済）</div>
+    <div class="home-desc" style="padding:0 24px 12px">タップした問番号から順番に解き進めます（${doneCount}/${qs.length}問 回答済）</div>
     <div style="display:flex;flex-direction:column;gap:6px;padding:0 16px 16px">
       ${itemsHtml}
     </div>
@@ -3227,13 +3228,19 @@ function renderEssayList() {
 }
 
 function startEssayQ(qId) {
+  const label = APP.essayGroupLabel || "教科教職に関する科目(Ⅱ)";
+  const group = SUBJECT_GROUPS.find(g => g.label === label);
+  // IDの昇順で固定し、タップした問題から最後まで
+  const allQs = (group ? group.cats.flatMap(c => catQuestions(c)) : []).sort((a,b) => a.id - b.id);
+  const startIdx = allQs.findIndex(q => q.id === qId);
+  const ids = allQs.slice(startIdx >= 0 ? startIdx : 0).map(q => q.id);
   APP = {
     screen: "exam",
     mode: "cat",
-    catFilter: APP.essayGroupLabel || "教科教職に関する科目(Ⅱ)",
+    catFilter: label,
     returnTo: "essay-list",
-    essayGroupLabel: APP.essayGroupLabel || "教科教職に関する科目(Ⅱ)",
-    questionIds: [qId],
+    essayGroupLabel: label,
+    questionIds: ids,
     currentIdx: 0,
     answers: {},
     choiceOrders: {},
